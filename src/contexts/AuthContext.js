@@ -21,7 +21,9 @@ export const AuthProvider = ({ children }) => {
       setCurrentUser(user);
       if (user) {
         const userRef = doc(db, 'users', user.uid);
-        const unsubProfile = onSnapshot(userRef, (docSnap) => {
+        // We don't need to store the return value of onSnapshot here,
+        // as the main onAuthStateChanged listener handles the cleanup.
+        onSnapshot(userRef, (docSnap) => {
           if (docSnap.exists()) {
             setUserProfile(docSnap.data());
           } else {
@@ -33,12 +35,13 @@ export const AuthProvider = ({ children }) => {
             setDoc(userRef, newProfile);
           }
         });
+        setLoading(false);
       } else {
         setUserProfile(null);
+        setLoading(false);
       }
-      setLoading(false);
     });
-    return unsubscribe;
+    return () => unsubscribe();
   }, []);
 
   const blockUser = async (userIdToBlock) => {

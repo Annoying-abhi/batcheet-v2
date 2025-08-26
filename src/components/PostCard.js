@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
-import { User, Feather, MessageCircle } from 'lucide-react';
+import { User, Feather, MessageCircle, Send } from 'lucide-react'; // Import Send icon
 import ReactionButton from './ReactionButton';
 import DeleteModal from './DeleteModal';
 import PostMenu from './PostMenu';
@@ -94,7 +94,6 @@ const PostCard = ({ post, navigate, onDelete }) => {
                         {post.text}
                     </p>
                 </div>
-                {/* --- DEFINITIVE RESPONSIVE FOOTER --- */}
                 <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4 bg-gray-800/30 border-t border-gray-700/50 px-4 py-3">
                     <div className="flex items-center gap-2 flex-wrap">
                         <ReactionButton post={post} reactionType="fire" />
@@ -113,7 +112,7 @@ const PostCard = ({ post, navigate, onDelete }) => {
                         </button>
                         {!isAuthor && (
                              <button onClick={handleStartChat} className="flex items-center gap-2 text-gray-400 text-sm hover:text-cyan-400 transition-colors">
-                                <MessageCircle className="w-5 h-5" />
+                                <Send className="w-5 h-5" /> {/* Changed Icon */}
                             </button>
                         )}
                     </div>

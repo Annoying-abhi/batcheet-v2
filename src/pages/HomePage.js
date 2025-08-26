@@ -55,7 +55,7 @@ const HomePage = ({ navigate }) => {
             ) : (
                 <div className="text-center py-16 bg-gray-800/50 border border-dashed border-gray-700/80 rounded-lg">
                     <p className="text-gray-500 text-lg">It's quiet here...</p>
-                    <p className="text-gray-400 mt-2">Be the first to post.</p>
+                    <p className="text-gray-400 mt-2">Be the first to create a post.</p>
                     <button onClick={() => navigate('create')} className="mt-6 bg-cyan-500 hover:bg-cyan-400 text-white font-bold py-2 px-6 rounded-lg transition-colors">
                         Create a Post
                     </button>

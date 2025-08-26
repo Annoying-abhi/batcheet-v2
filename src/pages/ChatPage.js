@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db, rtdb } from '../firebase/config';
-import { doc, onSnapshot, collection, query, orderBy } from 'firebase/firestore';
+import { doc, onSnapshot, collection, query, orderBy, updateDoc } from 'firebase/firestore'; // Import updateDoc
 import { ref, onValue } from 'firebase/database';
 import { User } from 'lucide-react';
 import MessageForm from '../components/MessageForm';
@@ -15,6 +15,18 @@ const ChatPage = ({ navigate, chatId }) => {
     const [isOnline, setIsOnline] = useState(false);
     const messagesEndRef = useRef(null);
 
+    // --- Start of Change ---
+    // This effect handles resetting the unread count when the chat is opened
+    useEffect(() => {
+        if (chatId && currentUser) {
+            const chatRef = doc(db, 'chats', chatId);
+            updateDoc(chatRef, {
+                [`unreadCount.${currentUser.uid}`]: 0
+            }).catch(e => console.error("Error resetting unread count:", e));
+        }
+    }, [chatId, currentUser]);
+    // --- End of Change ---
+
     useEffect(() => {
         if (!db || !chatId) return;
         
@@ -25,11 +37,7 @@ const ChatPage = ({ navigate, chatId }) => {
 
             if (chatData) {
                 const otherUserId = chatData.participants.find(p => p !== currentUser.uid);
-                if (chatData.typingStatus && chatData.typingStatus[otherUserId]) {
-                    setIsOtherUserTyping(true);
-                } else {
-                    setIsOtherUserTyping(false);
-                }
+                setIsOtherUserTyping(!!(chatData.typingStatus && chatData.typingStatus[otherUserId]));
             }
         });
 

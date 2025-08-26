@@ -1,7 +1,8 @@
 import React, { useState, useRef } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
-import { addDoc, collection, serverTimestamp, doc, updateDoc } from 'firebase/firestore';
+// Import 'increment'
+import { addDoc, collection, serverTimestamp, doc, updateDoc, getDoc, increment } from 'firebase/firestore';
 import { Send } from 'lucide-react';
 
 const MessageForm = ({ chatId }) => {
@@ -38,7 +39,7 @@ const MessageForm = ({ chatId }) => {
         if (!text.trim() || !currentUser || !db) return;
 
         const messageText = text;
-        setText(''); // Clear the input box immediately for instant feedback
+        setText(''); 
         setIsSubmitting(true);
 
         if (typingTimeoutRef.current) {
@@ -51,6 +52,14 @@ const MessageForm = ({ chatId }) => {
         const chatRef = doc(db, 'chats', chatId);
 
         try {
+            // --- Start of Change ---
+            const chatSnap = await getDoc(chatRef);
+            if (!chatSnap.exists()) {
+                throw new Error("Chat does not exist!");
+            }
+            const chatData = chatSnap.data();
+            const otherUserId = chatData.participants.find(p => p !== currentUser.uid);
+
             await addDoc(messagesRef, {
                 text: messageText,
                 senderId: currentUser.uid,
@@ -59,12 +68,15 @@ const MessageForm = ({ chatId }) => {
 
             await updateDoc(chatRef, {
                 lastMessage: { text: messageText, senderId: currentUser.uid },
-                lastUpdated: serverTimestamp()
+                lastUpdated: serverTimestamp(),
+                // Increment the unread count for the other user
+                [`unreadCount.${otherUserId}`]: increment(1)
             });
+            // --- End of Change ---
 
         } catch (error) {
             console.error("Error sending message:", error);
-            setText(messageText); // If sending fails, restore the text
+            setText(messageText);
         } finally {
             setIsSubmitting(false);
         }

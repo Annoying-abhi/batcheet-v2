@@ -1,8 +1,9 @@
 import React from 'react';
-import { Sparkles } from 'lucide-react';
+import { Sparkles, Bell } from 'lucide-react'; // Import Bell icon
 import { useAuth } from '../contexts/AuthContext';
 
-const Header = ({ navigate }) => {
+// Accept navigate and totalUnreadCount as props
+const Header = ({ navigate, totalUnreadCount }) => { 
   const { userProfile } = useAuth();
 
   return (
@@ -17,12 +18,22 @@ const Header = ({ navigate }) => {
             Batcheet
           </div>
           {userProfile && (
-            <div className="flex items-center gap-3">
-              <div className="text-right hidden sm:block">
-                <p className="text-sm font-semibold text-gray-200">{userProfile.displayName}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-gray-700">
-                {userProfile.photoURL && <img src={userProfile.photoURL} alt="Profile" className="w-full h-full rounded-full" />}
+            <div className="flex items-center gap-4">
+              {/* --- Start of Change: Notification Bell --- */}
+              <button onClick={() => navigate('chats')} className="relative text-gray-400 hover:text-white transition-colors">
+                <Bell className="w-6 h-6" />
+                {totalUnreadCount > 0 && (
+                    <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-900"></div>
+                )}
+              </button>
+              {/* --- End of Change --- */}
+              <div className="flex items-center gap-3">
+                  <div className="text-right hidden sm:block">
+                      <p className="text-sm font-semibold text-gray-200">{userProfile.displayName}</p>
+                  </div>
+                  <div className="w-10 h-10 rounded-full bg-gray-700">
+                      {userProfile.photoURL && <img src={userProfile.photoURL} alt="Profile" className="w-full h-full rounded-full" />}
+                  </div>
               </div>
             </div>
           )}

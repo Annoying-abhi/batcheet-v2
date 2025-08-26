@@ -41,6 +41,10 @@ const ChatsListPage = ({ navigate }) => {
                     chats.map(chat => {
                         const otherUserId = chat.participants.find(p => p !== currentUser.uid);
                         const otherUserProfile = chat.participantProfiles[otherUserId] || {};
+                        // --- Start of Change ---
+                        const unreadCount = chat.unreadCount?.[currentUser.uid] || 0;
+                        const isUnread = unreadCount > 0;
+                        // --- End of Change ---
                         return (
                             <div key={chat.id} onClick={() => navigate('chat', { chatId: chat.id })}
                                 className="p-4 flex items-center gap-4 cursor-pointer hover:bg-gray-700/50 transition-colors">
@@ -53,11 +57,24 @@ const ChatsListPage = ({ navigate }) => {
                                 </div>
                                 <div className="flex-grow overflow-hidden">
                                     <h2 className="font-bold text-white truncate">{otherUserProfile.name || 'Anonymous'}</h2>
-                                    <p className="text-sm text-gray-400 truncate">{chat.lastMessage?.text || 'No messages yet'}</p>
+                                    {/* --- Start of Change --- */}
+                                    <p className={`text-sm truncate ${isUnread ? 'text-gray-100 font-semibold' : 'text-gray-400'}`}>
+                                        {chat.lastMessage?.text || 'No messages yet'}
+                                    </p>
+                                    {/* --- End of Change --- */}
                                 </div>
-                                <span className="text-xs text-gray-500 flex-shrink-0">
-                                    {chat.lastUpdated?.toDate().toLocaleTimeString()}
-                                </span>
+                                <div className="flex flex-col items-end gap-1">
+                                    <span className="text-xs text-gray-500 flex-shrink-0">
+                                        {chat.lastUpdated?.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                                    </span>
+                                    {/* --- Start of Change --- */}
+                                    {isUnread && (
+                                        <span className="w-6 h-6 bg-cyan-500 text-white text-xs font-bold flex items-center justify-center rounded-full">
+                                            {unreadCount}
+                                        </span>
+                                    )}
+                                    {/* --- End of Change --- */}
+                                </div>
                             </div>
                         );
                     })

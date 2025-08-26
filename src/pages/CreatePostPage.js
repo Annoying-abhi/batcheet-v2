@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
 import { addDoc, collection, serverTimestamp } from 'firebase/firestore';
+import { processMentions } from '../firebase/helpers';
 import { Feather, Sun, Wind, Hash, Moon, Coffee, Send } from 'lucide-react';
 
 const moodIcons = {
@@ -14,7 +15,7 @@ const moodIcons = {
 };
 
 const CreatePostPage = ({ navigate }) => {
-    const { currentUser, userProfile } = useAuth(); // Use userProfile from context
+    const { currentUser, userProfile } = useAuth();
     const [text, setText] = useState('');
     const [mood, setMood] = useState('Reflective');
     const [isSubmitting, setIsSubmitting] = useState(false);
@@ -22,28 +23,33 @@ const CreatePostPage = ({ navigate }) => {
 
     const handleSubmit = async (e) => {
         e.preventDefault();
-        if (!text.trim() || !currentUser || !userProfile) return; // Ensure userProfile is loaded
+        if (!text.trim() || !currentUser || !userProfile) return;
         setIsSubmitting(true);
         
         try {
-            await addDoc(collection(db, "posts"), {
+            const postDocRef = await addDoc(collection(db, "posts"), {
                 text, 
                 mood, 
                 authorId: currentUser.uid,
                 authorProfile: {
-                    name: userProfile.displayName, // Use displayName from profile
-                    photoURL: userProfile.photoURL, // Use photoURL from profile
+                    name: userProfile.displayName,
+                    photoURL: userProfile.photoURL,
+                    username: userProfile.username
                 },
                 createdAt: serverTimestamp(), 
                 commentCount: 0,
-                reactions: { 
-                    fire: [],
-                    mindblown: [],
-                    funny: [],
-                    wholesome: [],
-                    relatable: []
-                }
+                reactions: { fire: [], mindblown: [], funny: [], wholesome: [], relatable: [] }
             });
+
+            await processMentions(
+                text,
+                currentUser.uid,
+                userProfile.displayName,
+                postDocRef.id,
+                text.substring(0, 50),
+                'post' // Provide the context here
+            );
+
             navigate('home');
         } catch (error) {
             console.error("Error creating post:", error);
@@ -54,12 +60,12 @@ const CreatePostPage = ({ navigate }) => {
 
     return (
         <div className="bg-gray-800/50 border border-cyan-500/20 p-6 rounded-lg shadow-lg animate-fade-in">
-            <h1 className="text-3xl font-bold mb-6 text-cyan-300">Create a New Post</h1>
+            <h1 className="text-3xl font-bold mb-6 text-cyan-300">Share Your Thoughts</h1>
             <form onSubmit={handleSubmit}>
                 <textarea
                     value={text}
                     onChange={(e) => setText(e.target.value)}
-                    placeholder="What's on your mind?..."
+                    placeholder="What's on your mind? Mention friends with @username..."
                     className="w-full h-40 p-4 bg-gray-900/70 border-2 border-gray-700 rounded-lg focus:ring-2 focus:ring-cyan-500 focus:border-cyan-500 focus:outline-none transition-all duration-300 shadow-inner text-lg"
                     maxLength="500"
                 />

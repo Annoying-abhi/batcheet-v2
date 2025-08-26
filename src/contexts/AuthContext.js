@@ -1,8 +1,8 @@
 import React, { createContext, useState, useEffect, useContext } from 'react';
-import { auth, db, rtdb } from '../firebase/config'; // Import rtdb
+import { auth, db, rtdb } from '../firebase/config';
 import { onAuthStateChanged } from 'firebase/auth';
 import { doc, setDoc, onSnapshot, updateDoc, arrayUnion } from 'firebase/firestore';
-import { ref, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database'; // Import RTDB functions
+import { ref, onValue, set, onDisconnect, serverTimestamp } from 'firebase/database';
 import { Zap } from 'lucide-react';
 
 const adjectives = ["Whispering", "Silent", "Wandering", "Cosmic", "Hidden", "Forgotten", "Midnight", "Crimson", "Golden", "Iron"];
@@ -21,38 +21,33 @@ export const AuthProvider = ({ children }) => {
         const unsubscribe = onAuthStateChanged(auth, (user) => {
             setCurrentUser(user);
             if (user) {
-                // --- Start of Presence Management Logic ---
                 const userStatusDatabaseRef = ref(rtdb, '/status/' + user.uid);
-                const isOfflineForDatabase = {
-                    state: 'offline',
-                    last_changed: serverTimestamp(),
-                };
-                const isOnlineForDatabase = {
-                    state: 'online',
-                    last_changed: serverTimestamp(),
-                };
-
+                const isOfflineForDatabase = { state: 'offline', last_changed: serverTimestamp() };
+                const isOnlineForDatabase = { state: 'online', last_changed: serverTimestamp() };
                 const connectedRef = ref(rtdb, '.info/connected');
+                
                 onValue(connectedRef, (snapshot) => {
-                    if (snapshot.val() === false) {
-                        return;
-                    }
+                    if (snapshot.val() === false) { return; }
                     onDisconnect(userStatusDatabaseRef).set(isOfflineForDatabase).then(() => {
                         set(userStatusDatabaseRef, isOnlineForDatabase);
                     });
                 });
-                // --- End of Presence Management Logic ---
 
                 const userRef = doc(db, 'users', user.uid);
                 onSnapshot(userRef, (docSnap) => {
                     if (docSnap.exists()) {
                         setUserProfile(docSnap.data());
                     } else {
+                        // --- Start of Change ---
+                        // When creating a new profile, add the isProfileComplete flag
                         const newProfile = {
                             displayName: user.isAnonymous ? generateAnonymousName() : user.displayName,
+                            username: null, // Initially null
                             photoURL: user.isAnonymous ? `https://api.dicebear.com/7.x/bottts/svg?seed=${user.uid}` : user.photoURL,
-                            blockedUsers: []
+                            blockedUsers: [],
+                            isProfileComplete: false // The new flag
                         };
+                        // --- End of Change ---
                         setDoc(userRef, newProfile);
                     }
                 });
@@ -71,6 +66,8 @@ export const AuthProvider = ({ children }) => {
         await updateDoc(userRef, { blockedUsers: arrayUnion(userIdToBlock) });
     };
 
+    const value = { currentUser, userProfile, blockUser, signOut: () => auth.signOut() };
+
     if (loading) {
         return (
             <div className="bg-gray-900 flex items-center justify-center h-screen">
@@ -78,8 +75,6 @@ export const AuthProvider = ({ children }) => {
             </div>
         );
     }
-
-    const value = { currentUser, userProfile, blockUser, signOut: () => auth.signOut() };
-
+    
     return <AuthContext.Provider value={value}>{!loading && children}</AuthContext.Provider>;
 };

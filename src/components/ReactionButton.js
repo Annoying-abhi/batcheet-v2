@@ -1,10 +1,10 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { db } from '../firebase/config';
-import { doc, runTransaction } from 'firebase/firestore';
+import { doc, runTransaction, collection, addDoc, serverTimestamp } from 'firebase/firestore';
 
 const ReactionButton = ({ post, reactionType }) => {
-    const { currentUser } = useAuth();
+    const { currentUser, userProfile } = useAuth();
     const [count, setCount] = useState(0);
     const [userHasReacted, setUserHasReacted] = useState(false);
 
@@ -29,53 +29,56 @@ const ReactionButton = ({ post, reactionType }) => {
         if (!currentUser) return;
         const postRef = doc(db, 'posts', post.id);
 
-        // Optimistic UI update
-        const originalReactions = { ...post.reactions };
         const hadAlreadyReacted = userHasReacted;
-
-        // Immediately update the local state
         setUserHasReacted(!hadAlreadyReacted);
         setCount(hadAlreadyReacted ? count - 1 : count + 1);
-
 
         try {
             await runTransaction(db, async (transaction) => {
                 const postDoc = await transaction.get(postRef);
-                if (!postDoc.exists()) {
-                    throw new Error("Document does not exist!");
-                }
+                if (!postDoc.exists()) throw new Error("Document does not exist!");
 
                 const postData = postDoc.data();
                 const newReactions = { ...(postData.reactions || {}) };
-
-                // Ensure all reaction types are initialized
                 Object.keys(reactionEmojis).forEach(key => {
-                    if (!newReactions[key]) {
-                        newReactions[key] = [];
-                    }
+                    if (!newReactions[key]) newReactions[key] = [];
                 });
                 
-                // Allow only one reaction type per user
+                let userAlreadyReactedSomewhere = false;
                 Object.keys(newReactions).forEach(key => {
-                    const reactorsList = newReactions[key];
-                    const userIndex = reactorsList.indexOf(currentUser.uid);
+                    const userIndex = newReactions[key].indexOf(currentUser.uid);
                     if (userIndex > -1) {
-                        reactorsList.splice(userIndex, 1);
+                        userAlreadyReactedSomewhere = true;
+                        newReactions[key].splice(userIndex, 1);
                     }
                 });
 
-                // Add the new reaction if the user hadn't reacted this way before
                 if (!hadAlreadyReacted) {
                     newReactions[reactionType].push(currentUser.uid);
                 }
                 
                 transaction.update(postRef, { reactions: newReactions });
             });
+
+            // Add Notification Logic
+            if (!hadAlreadyReacted && post.authorId !== currentUser.uid) {
+                const notificationRef = collection(db, 'users', post.authorId, 'notifications');
+                await addDoc(notificationRef, {
+                    type: 'reaction',
+                    reactionType: reactionType,
+                    fromUserId: currentUser.uid,
+                    fromUserName: userProfile.displayName,
+                    postId: post.id,
+                    postTextSnippet: post.text.substring(0, 50),
+                    createdAt: serverTimestamp(),
+                    read: false
+                });
+            }
+
         } catch (e) {
             console.error("Transaction failed: ", e);
-            // If the transaction fails, revert the optimistic UI update
             setUserHasReacted(hadAlreadyReacted);
-            setCount(originalReactions[reactionType]?.length || 0);
+            setCount(post.reactions[reactionType]?.length || 0);
         }
     };
 

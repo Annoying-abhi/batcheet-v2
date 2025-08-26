@@ -1,10 +1,37 @@
-import React from 'react';
-import { Sparkles, Bell } from 'lucide-react'; // Import Bell icon
+import React, { useState, useEffect } from 'react';
+import { Sparkles, Bell } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
+import { db } from '../firebase/config';
+import { collection, query, where, onSnapshot } from 'firebase/firestore';
 
-// Accept navigate and totalUnreadCount as props
-const Header = ({ navigate, totalUnreadCount }) => { 
-  const { userProfile } = useAuth();
+const Header = ({ navigate }) => { 
+  const { currentUser, userProfile } = useAuth();
+  const [unreadNotifsCount, setUnreadNotifsCount] = useState(0);
+  const [animateBell, setAnimateBell] = useState(false);
+
+  useEffect(() => {
+    if (!currentUser) return;
+
+    // This listener checks for new unread notifications in real-time
+    const notifsQuery = query(
+        collection(db, 'users', currentUser.uid, 'notifications'),
+        where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(notifsQuery, (snapshot) => {
+        const newCount = snapshot.size;
+        
+        // Only animate if the count increases
+        if (newCount > unreadNotifsCount) {
+            setAnimateBell(true);
+            // Remove the animation class after it has played
+            setTimeout(() => setAnimateBell(false), 1000);
+        }
+        setUnreadNotifsCount(newCount);
+    });
+
+    return () => unsubscribe();
+  }, [currentUser, unreadNotifsCount]);
 
   return (
     <header className="bg-gray-900/80 backdrop-blur-lg sticky top-0 z-40 border-b border-gray-700/50">
@@ -19,14 +46,17 @@ const Header = ({ navigate, totalUnreadCount }) => {
           </div>
           {userProfile && (
             <div className="flex items-center gap-4">
-              {/* --- Start of Change: Notification Bell --- */}
-              <button onClick={() => navigate('chats')} className="relative text-gray-400 hover:text-white transition-colors">
+              <button 
+                onClick={() => navigate('notifications')} 
+                className={`relative text-gray-400 hover:text-white transition-colors ${animateBell ? 'animate-shake' : ''}`}
+              >
                 <Bell className="w-6 h-6" />
-                {totalUnreadCount > 0 && (
-                    <div className="absolute top-0 right-0 w-3 h-3 bg-red-500 rounded-full border-2 border-gray-900"></div>
+                {unreadNotifsCount > 0 && (
+                    <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 text-white text-xs flex items-center justify-center rounded-full border-2 border-gray-900">
+                      {unreadNotifsCount}
+                    </div>
                 )}
               </button>
-              {/* --- End of Change --- */}
               <div className="flex items-center gap-3">
                   <div className="text-right hidden sm:block">
                       <p className="text-sm font-semibold text-gray-200">{userProfile.displayName}</p>
